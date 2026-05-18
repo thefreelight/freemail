@@ -1,4 +1,4 @@
-name = "mailfree"
+name = "freemail"
 # name = "mail-exhibit"
 main = "src/server.js"
 compatibility_date = "2024-01-01"
@@ -7,8 +7,8 @@ keep_vars=true
 # D1 数据库绑定
 [[d1_databases]]
 binding = "TEMP_MAIL_DB"
-database_name = "maill_free_db" #你的d1数据库名称
-database_id = "c82663ac-62b6-4ba6-be81-cbe297f2a3dd" # 你的database_id
+database_name = "mail_free_db" #你的d1数据库名称
+database_id = "PLACEHOLDER_D1_ID" # 你的database_id
 # 登录会话过期时间（单位：天，默认7天）
 # 环境变量
 [vars]
@@ -19,7 +19,11 @@ GUEST_PASSWORD="guest"
 JWT_TOKEN="dfvhluhdaslufhvdv"
 JWT_TOKENGUEST_PASSWORD="dfsfsfxzcv"
 SESSION_EXPIRE_DAYS="365"
-MAIL_DOMAIN=""
+MAIL_DOMAIN="freemail.123kele.com"
+
+[[routes]]
+pattern = "freemail.123kele.com"
+custom_domain = true
 
 
 

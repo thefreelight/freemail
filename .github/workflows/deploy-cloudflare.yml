@@ -2,10 +2,13 @@ name: 🚀 Deploy freemail to Cloudflare Workers
 
 on:
   push:
-    branches: [ main ]
+    branches: [ master ]
     paths:
       - "src/**"
       - "public/**"
+      - "scripts/**"
+      - "d1-init.sql"
+      - "package*.json"
       - "wrangler.toml"
   workflow_dispatch:
 
@@ -16,7 +19,7 @@ jobs:
 
     env:
       # Worker 名称
-      NAME: ${{ secrets.NAME || vars.NAME || 'mailfree' }}
+      NAME: ${{ secrets.NAME || vars.NAME || 'freemail' }}
       # Cloudflare 凭证
       CLOUDFLARE_API_TOKEN: ${{ secrets.CLOUDFLARE_API_TOKEN }}
       CLOUDFLARE_ACCOUNT_ID: ${{ secrets.CLOUDFLARE_ACCOUNT_ID }}
@@ -30,7 +33,7 @@ jobs:
       ADMIN_PASSWORD: ${{ secrets.ADMIN_PASSWORD || vars.ADMIN_PASSWORD }}
       JWT_TOKEN: ${{ secrets.JWT_TOKEN || vars.JWT_TOKEN }}
       SESSION_EXPIRE_DAYS: ${{ secrets.SESSION_EXPIRE_DAYS || vars.SESSION_EXPIRE_DAYS || '365' }}
-      MAIL_DOMAIN: ${{ secrets.MAIL_DOMAIN || vars.MAIL_DOMAIN }}
+      MAIL_DOMAIN: ${{ secrets.MAIL_DOMAIN || vars.MAIL_DOMAIN || 'freemail.123kele.com' }}
 
     outputs:
       worker_url: ${{ steps.deploy.outputs.worker_url }}
@@ -211,6 +214,8 @@ jobs:
           D1_ID=$(grep 'database_id' "$CONFIG_FILE" | head -1 | sed 's/.*"\(.*\)".*/\1/')
 
           if [ -f "d1-init.sql" ]; then
+            echo "🔎 Checking D1 schema drift..."
+            node scripts/check-d1-drift.mjs "${D1_DB_NAME}" "$CONFIG_FILE"
             echo "📄 Found d1-init.sql, executing migration..."
             wrangler d1 execute "${D1_DB_NAME}" -c "$CONFIG_FILE" --file=d1-init.sql --remote
             echo "✅ Database tables initialized."
