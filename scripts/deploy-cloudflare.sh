@@ -96,10 +96,11 @@ const text = readFileSync(file, 'utf8').replaceAll('PLACEHOLDER_D1_ID', process.
 writeFileSync(file, text);
 NODE
 
+WRANGLER="$WRANGLER" node scripts/check-d1-drift.mjs "$D1_DB_NAME" "$CONFIG_FILE"
+
 if ! "$WRANGLER" r2 bucket list | grep -q "^${R2_BUCKET_NAME}$"; then
   "$WRANGLER" r2 bucket create "$R2_BUCKET_NAME"
 fi
 
-WRANGLER="$WRANGLER" node scripts/check-d1-drift.mjs "$D1_DB_NAME" "$CONFIG_FILE"
 "$WRANGLER" d1 execute "$D1_DB_NAME" -c "$CONFIG_FILE" --file=d1-init.sql --remote
 "$WRANGLER" deploy -c "$CONFIG_FILE"

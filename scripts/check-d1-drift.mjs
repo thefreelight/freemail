@@ -68,6 +68,7 @@ async function readRemoteSchema(databaseName, configPath) {
     FROM sqlite_schema
     WHERE type IN ('table', 'index')
       AND name NOT LIKE 'sqlite_%'
+      AND name NOT LIKE '_cf_%'
     ORDER BY type, name
   `);
 
