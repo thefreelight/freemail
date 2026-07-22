@@ -15,6 +15,7 @@
 import * as resendProvider from './resend/index.js';
 import * as sendflareProvider from './sendflare/index.js';
 import * as cyberpersonsProvider from './cyberpersons/index.js';
+import { isSmtpConfigured, sendEmailWithSmtp, sendBatchWithSmtp } from '../smtpSender.js';
 import {
   parseProviderConfig,
   selectKeyForDomain,
@@ -39,13 +40,16 @@ export const cyberpersons = cyberpersonsProvider;
  *   7. 都没命中 → 抛错
  *
  * @param {string} fromEmail
- * @param {{ resendApiKey?: string, sendflareApiKey?: string, cyberpersonsApiKey?: string }} keys
- * @returns {{ provider: 'resend'|'sendflare'|'cyberpersons', apiKey: string }}
+ * @param {{ resendApiKey?: string, sendflareApiKey?: string, cyberpersonsApiKey?: string, smtpConfig?: object }} keys
+ * @returns {{ provider: 'resend'|'sendflare'|'cyberpersons'|'smtp', apiKey?: string, smtpConfig?: object }}
  */
-export function resolveProvider(fromEmail, { resendApiKey = '', sendflareApiKey = '', cyberpersonsApiKey = '' } = {}) {
+export function resolveProvider(fromEmail, { resendApiKey = '', sendflareApiKey = '', cyberpersonsApiKey = '', smtpConfig = {} } = {}) {
   if (!fromEmail) {
     throw new Error('发件人地址为空');
   }
+
+  // 自建 Mailcow SMTP 是本实例的默认出站通道；未配置时再回退到上游 API 渠道。
+  if (isSmtpConfigured(smtpConfig)) return { provider: 'smtp', smtpConfig };
 
   const isSingleKey = (token) =>
     typeof token === 'string' && token.length > 0 && !token.includes('=');
@@ -87,7 +91,11 @@ export function resolveProvider(fromEmail, { resendApiKey = '', sendflareApiKey 
  * @returns {Promise<{ provider: string, id: string|null, raw: any }>}
  */
 export async function sendEmailAuto(keys, payload) {
-  const { provider, apiKey } = resolveProvider(payload?.from, keys);
+  const { provider, apiKey, smtpConfig } = resolveProvider(payload?.from, keys);
+  if (provider === 'smtp') {
+    const result = await sendEmailWithSmtp(smtpConfig, payload);
+    return { provider, id: result.id || null, raw: result };
+  }
   if (provider === 'sendflare') {
     const result = await sendflareProvider.sendEmailWithSendflare(apiKey, payload);
     return { provider, id: result.id || null, raw: result.raw };
@@ -118,21 +126,27 @@ export async function sendBatchAuto(keys, payloads) {
   // 先为每封邮件解析 provider + apiKey，并按 (provider, apiKey) 分组，
   // 记下原始索引以便最终复位顺序。
   const resolved = payloads.map((p, idx) => {
-    const { provider, apiKey } = resolveProvider(p?.from, keys);
-    return { idx, provider, apiKey, payload: p };
+    const { provider, apiKey, smtpConfig } = resolveProvider(p?.from, keys);
+    return { idx, provider, apiKey, smtpConfig, payload: p };
   });
 
   const groups = new Map(); // key: `${provider}::${apiKey}`
   for (const item of resolved) {
-    const k = `${item.provider}::${item.apiKey}`;
-    if (!groups.has(k)) groups.set(k, { provider: item.provider, apiKey: item.apiKey, items: [] });
+    const k = `${item.provider}::${item.apiKey || item.smtpConfig?.host || ''}`;
+    if (!groups.has(k)) groups.set(k, { provider: item.provider, apiKey: item.apiKey, smtpConfig: item.smtpConfig, items: [] });
     groups.get(k).items.push(item);
   }
 
   const out = new Array(payloads.length);
 
   await Promise.all(Array.from(groups.values()).map(async (group) => {
-    if (group.provider === 'sendflare') {
+    if (group.provider === 'smtp') {
+      const results = await sendBatchWithSmtp(group.smtpConfig, group.items.map(i => i.payload));
+      group.items.forEach((item, i) => {
+        const r = results[i] || {};
+        out[item.idx] = { provider: 'smtp', id: r.id || null, raw: r };
+      });
+    } else if (group.provider === 'sendflare') {
       const results = await sendflareProvider.sendBatchWithSendflare(
         group.apiKey,
         group.items.map(i => i.payload)

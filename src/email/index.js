@@ -14,5 +14,7 @@ export {
   parseProviderConfig,
   getConfiguredDomains,
   resend,
-  sendflare
+  sendflare,
+  cyberpersons
 } from './providers/index.js';
+export { isSmtpConfigured, sendEmailWithSmtp, sendBatchWithSmtp } from './smtpSender.js';

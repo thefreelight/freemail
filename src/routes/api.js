@@ -37,6 +37,15 @@ router.all('/api/*', async (c) => {
     resendApiKey: c.env.RESEND_API_KEY || c.env.RESEND_TOKEN || c.env.RESEND || '',
     sendflareApiKey: c.env.SENDFLARE_API_KEY || c.env.SENDFLARE_TOKEN || '',
     cyberpersonsApiKey: c.env.CYBERPERSONS_API_KEY || c.env.CYBERPERSONS_API_TOKEN || c.env.CYBERPERSONS || '',
+    smtpConfig: {
+      host: c.env.SMTP_HOST || '',
+      port: c.env.SMTP_PORT || '',
+      user: c.env.SMTP_USER || '',
+      pass: c.env.SMTP_PASS || '',
+      from: c.env.SMTP_FROM || c.env.SMTP_USER || '',
+      helo: c.env.SMTP_HELO || '',
+      envelopeFrom: c.env.SMTP_ENVELOPE_FROM || c.env.SMTP_FROM || c.env.SMTP_USER || ''
+    },
     adminName: String(c.env.ADMIN_NAME || 'admin').trim().toLowerCase(),
     r2: c.env.MAIL_EML,
     authPayload

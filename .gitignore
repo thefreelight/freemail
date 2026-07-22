@@ -11,6 +11,7 @@ worker-configuration.d.ts
 
 # Environment variables
 .env
+wrangler-deploy.toml
 .env.local
 .env.development.local
 .env.test.local

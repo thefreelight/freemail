@@ -11,6 +11,7 @@ import {
   sendBatchAuto,
   resend as resendProvider
 } from '../email/providers/index.js';
+import { isSmtpConfigured } from '../email/smtpSender.js';
 
 // 严格管理员可发信；普通用户和非严格 admin 必须显式开启 can_send。
 async function checkSendPermission(request, db, options) {
@@ -55,12 +56,15 @@ export async function handleSendApi(request, db, url, path, options) {
   const RESEND_API_KEY = options.resendApiKey || '';
   const SENDFLARE_API_KEY = options.sendflareApiKey || '';
   const CYBERPERSONS_API_KEY = options.cyberpersonsApiKey || '';
+  const SMTP_CONFIG = options.smtpConfig || {};
   const senderKeys = {
     resendApiKey: RESEND_API_KEY,
     sendflareApiKey: SENDFLARE_API_KEY,
-    cyberpersonsApiKey: CYBERPERSONS_API_KEY
+    cyberpersonsApiKey: CYBERPERSONS_API_KEY,
+    smtpConfig: SMTP_CONFIG
   };
-  const hasAnyKey = !!(RESEND_API_KEY || SENDFLARE_API_KEY || CYBERPERSONS_API_KEY);
+  const hasAnyKey = !!(RESEND_API_KEY || SENDFLARE_API_KEY || CYBERPERSONS_API_KEY || isSmtpConfigured(SMTP_CONFIG));
+  const sendNotConfiguredMessage = '未配置发件服务（SMTP / Resend / SendFlare / Cyberpersons 均未配置）';
 
   if (path === '/api/sent' && request.method === 'GET') {
     if (isMock) return Response.json([]);
@@ -129,7 +133,7 @@ export async function handleSendApi(request, db, url, path, options) {
   if (path === '/api/send' && request.method === 'POST') {
     if (isMock) return errorResponse('演示模式不可发送', 403);
     try {
-      if (!hasAnyKey) return errorResponse('未配置发件 API Key（Resend / SendFlare / Cyberpersons 均未配置）', 500);
+      if (!hasAnyKey) return errorResponse(sendNotConfiguredMessage, 500);
       const allowed = await checkSendPermission(request, db, options);
       if (!allowed) return errorResponse('Forbidden', 403);
 
@@ -160,7 +164,7 @@ export async function handleSendApi(request, db, url, path, options) {
   if (path === '/api/send/batch' && request.method === 'POST') {
     if (isMock) return errorResponse('演示模式不可发送', 403);
     try {
-      if (!hasAnyKey) return errorResponse('未配置发件 API Key（Resend / SendFlare / Cyberpersons 均未配置）', 500);
+      if (!hasAnyKey) return errorResponse(sendNotConfiguredMessage, 500);
       const allowed = await checkSendPermission(request, db, options);
       if (!allowed) return errorResponse('Forbidden', 403);
 
@@ -206,11 +210,8 @@ export async function handleSendApi(request, db, url, path, options) {
       if (!access.allowed) return errorResponse('Forbidden', 403);
 
       const provider = await getProviderByResendId(db, id);
-      if (provider === 'sendflare') {
-        return errorResponse('SendFlare 渠道暂不支持此操作', 400);
-      }
-      if (provider === 'cyberpersons') {
-        return errorResponse('Cyberpersons 渠道暂不支持此操作', 400);
+      if (provider !== 'resend') {
+        return errorResponse(`${provider === 'smtp' ? 'SMTP' : provider === 'sendflare' ? 'SendFlare' : 'Cyberpersons'} 渠道暂不支持此操作`, 400);
       }
       if (!RESEND_API_KEY) return errorResponse('未配置 Resend API Key', 500);
 
@@ -230,11 +231,8 @@ export async function handleSendApi(request, db, url, path, options) {
       if (!access.allowed) return errorResponse('Forbidden', 403);
 
       const provider = await getProviderByResendId(db, id);
-      if (provider === 'sendflare') {
-        return errorResponse('SendFlare 渠道暂不支持此操作', 400);
-      }
-      if (provider === 'cyberpersons') {
-        return errorResponse('Cyberpersons 渠道暂不支持此操作', 400);
+      if (provider !== 'resend') {
+        return errorResponse(`${provider === 'smtp' ? 'SMTP' : provider === 'sendflare' ? 'SendFlare' : 'Cyberpersons'} 渠道暂不支持此操作`, 400);
       }
       if (!RESEND_API_KEY) return errorResponse('未配置 Resend API Key', 500);
 
@@ -262,11 +260,8 @@ export async function handleSendApi(request, db, url, path, options) {
       if (!access.allowed) return errorResponse('Forbidden', 403);
 
       const provider = await getProviderByResendId(db, id);
-      if (provider === 'sendflare') {
-        return errorResponse('SendFlare 渠道暂不支持此操作', 400);
-      }
-      if (provider === 'cyberpersons') {
-        return errorResponse('Cyberpersons 渠道暂不支持此操作', 400);
+      if (provider !== 'resend') {
+        return errorResponse(`${provider === 'smtp' ? 'SMTP' : provider === 'sendflare' ? 'SendFlare' : 'Cyberpersons'} 渠道暂不支持此操作`, 400);
       }
       if (!RESEND_API_KEY) return errorResponse('未配置 Resend API Key', 500);
 
